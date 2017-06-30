@@ -5,41 +5,29 @@ using System.Text;
 
 namespace Cron
 {
-    public class Limit
-    {
-        public int Min { get; set; }
-        public int Max { get; set; }
-
-        public Limit(int min, int max)
-        {
-            Min = min;
-            Max = max;
-        }
-    }
-
-    public class Span<T>
-    {
-        public T Item { get; set; }
-    }
-
     public class CronParser : CronParent
     {
-        private Func<DateTime, bool> _year = (value) => true;
-        private Func<DateTime, bool> _seconds = (value) => true;
-        private Func<DateTime, bool> _hours = (value) => true;
-        private Func<DateTime, bool> _minutes = (value) => true;
-        private Func<DateTime, bool> _months = (value) => true;
-        private Func<DateTime, bool> _dayOfMonth = (value) => true;
-        private Func<DateTime, bool> _dayOfWeek = (value) => true;
+        private CronLambda _year = new CronLambdaYear();
+        private CronLambda _seconds = new CronLambdaSecond();
+        private CronLambda _hours = new CronLambdaHour();
+        private CronLambda _minutes = new CronLambdaMinute();
+        private CronLambda _months = new CronLambdaMonth();
+        private CronLambdaDayOfMonth _dayOfMonth = new CronLambdaDayOfMonth();
+        private CronLambda _dayOfWeek = new CronLambdaDayOfWeek();
+        private IMonthLookupFactory _factory;
         private decimal? _decimal;
         private string _context;
+
+        public CronParser(IMonthLookupFactory factory)
+        {
+            _factory = factory;
+        }
 
         public override ICronScheduler Parse(string cron)
         {
             Prepare(cron);
             Parse();
-
-            return new CronScheduler(_year, _seconds, _hours, _minutes, _months, _dayOfMonth, _dayOfWeek, _decimal ?? 0);
+            return new CronScheduler(dt => _year.Allowed(dt), dt => _seconds.Allowed(dt), dt => _hours.Allowed(dt), dt => _minutes.Allowed(dt), dt => _months.Allowed(dt), dt => _dayOfMonth.Allowed(dt), dt => _dayOfWeek.Allowed(dt), _decimal ?? 0);
         }
 
         private void Parse()
@@ -64,16 +52,12 @@ namespace Cron
             }
             else if (IsDigit() || Accept('*') || Accept('/'))
             {
-                var years = new HashSet<decimal>();
-
-                years.AddRange(ReadRange(2099));
+                _year.AddRange(ReadRange(2099));
                 while (Accept(','))
                 {
                     NextSymbol();
-                    years.AddRange(ReadRange(2099));
+                    _year.AddRange(ReadRange(2099));
                 }
-
-                _year = x => years.Contains(x.Year);
             }
 
             Expect(IsEof(), "More data...");
@@ -111,7 +95,6 @@ namespace Cron
                 }
                 else
                 {
-                    Console.WriteLine($"Setting decimal?: {end}");
                     _decimal = end;
                 }
             }
@@ -237,24 +220,104 @@ namespace Cron
             SkipSpaces();
             SetContext("ParseDayOfWeek");
 
-            if (IsWildcard())
+            var limit = new Limit(0, 9);
+
+            ParseBlocks(() => ParseWildcard2(_dayOfWeek, limit), () => ParseDayOfWeekInteger(_dayOfWeek, limit, ReadDayOfWeek), () => ParseDayOfWeek(_dayOfWeek, limit, ReadDayOfWeek));
+        }
+
+        private bool ParseDayOfWeekInteger(CronLambda set, Limit limit, Func<decimal> readFunc)
+        {
+            if (!IsDigit())
             {
-                // Console.WriteLine($"Seconds: All");
+                return false;
+            }
+
+            var start = (int)readFunc();
+
+            if (Accept('/'))
+            {
                 NextSymbol();
+                var stride = (int)readFunc();
+
+                for (var i = start; i <= limit.Max; i += stride)
+                {
+                    set.Add(i);
+                }
+                //set.Add(start);
+            }
+            else if (Accept('#'))
+            {
+                NextSymbol();
+                var nth = (int)ReadInteger();
+
+                set.AddLambda(dt =>
+                {
+                    var dow = (DayOfWeek)start;
+                    var result = _factory.Create(dt, new int[0]).NthWeekday(nth, dow, dt);
+                    return result;
+                });
+            }
+            else if (Accept('-'))
+            {
+                NextSymbol();
+                var end = (int)readFunc();
+
+                for (var i = start; i <= end; ++i)
+                {
+                    set.Add(i);
+                }
+                //set.Add(start);
+            }
+            else if (Accept('L'))
+            {
+                NextSymbol();
+                set.AddLambda(dt =>
+                {
+                    var dow = (DayOfWeek) start;
+                    return _factory.Create(dt, new int[0]).LastWeekday(dow, dt);
+                });
             }
             else
             {
-                var dayOfWeek = new HashSet<decimal>();
-
-                dayOfWeek.AddRange(ReadRange(ReadDayOfWeek));
-                while (Accept(','))
-                {
-                    NextSymbol();
-                    dayOfWeek.AddRange(ReadRange(ReadDayOfWeek));
-                }
-
-                _dayOfWeek = x => dayOfWeek.Contains((int)x.DayOfWeek);
+                set.Add(start);
             }
+            return true;
+        }
+
+        private bool ParseDayOfWeek(CronLambda set, Limit limit, Func<decimal> readFunc)
+        {
+            if (!IsAlpha())
+            {
+                return false;
+            }
+
+            var start = (int)readFunc();
+            set.Add(start);
+
+            if (Accept('/'))
+            {
+                NextSymbol();
+                var stride = (int)readFunc();
+
+                for (var i = start; i <= limit.Max; i += stride)
+                {
+                    set.Add(i);
+                }
+            }
+            else if (Accept('-'))
+            {
+                NextSymbol();
+                var end = (int)readFunc();
+
+                for (var i = start; i <= end; ++i)
+                {
+                    set.Add(i);
+                }
+            }
+            else if (IsWhiteSpace())
+            {
+            }
+            return true;
         }
 
         private decimal ReadMonth()
@@ -302,7 +365,7 @@ namespace Cron
             {
                 return (int)_dayNumberTranslator[(int)ReadDecimal()];
             }
-            throw new CronException("ReadDayOfWeek");
+            throw new CronException($"ReadDayOfWeek: [{Symbol}]");
         }
 
         private void ParseMonth()
@@ -317,20 +380,16 @@ namespace Cron
             }
             else
             {
-                var months = new HashSet<decimal>();
-
-                months.AddRange(ReadRange(ReadMonth));
+                _months.AddRange(ReadRange(ReadMonth));
                 while (Accept(','))
                 {
                     NextSymbol();
-                    months.AddRange(ReadRange(ReadMonth));
+                    _months.AddRange(ReadRange(ReadMonth));
                 }
-
-                _months = x => months.Contains(x.Month);
             }
         }
 
-        private bool ParseLast(ISet<decimal> set, Limit limit, Func<decimal> readFunc, Span<Func<DateTime, bool>> span)
+        private bool ParseLast(CronLambdaDayOfMonth set, Limit limit, Func<decimal> readFunc, CronLambda span)
         {
             if (!Accept('L'))
             {
@@ -340,82 +399,72 @@ namespace Cron
             var minusOffset = 0;
 
             NextSymbol();
-            if (Accept('-'))
+            if (Accept('W'))
+            {
+                NextSymbol();
+                set.AddLambda(dt => _factory.Create(dt, set.Weekdays()).LastWeekdayOfMonth(dt));
+                return true;
+            }
+            else if (Accept('-'))
             {
                 NextSymbol();
                 minusOffset = (int)ReadDecimal();
             }
 
-            var method = span.Item;
-            span.Item = (dt) => (dt == dt.LastOfMonth().AddDays(-minusOffset)) || method(dt);
+            span.AddLambda((dt) => (dt == dt.LastOfMonth().AddDays(-minusOffset)));
             return true;
         }
 
-        private bool ParseWeek(ISet<decimal> set, Limit limit, Span<Func<DateTime, bool>> span)
+        private bool ParseWeek(CronLambda set, Limit limit, CronLambda span)
         {
             if (!Accept('W'))
             {
                 return false;
             }
 
-            Console.WriteLine("parse week");
             NextSymbol();
 
-            var method = span.Item;
-            span.Item = (dt) => (dt.DayOfWeek != DayOfWeek.Sunday && dt.DayOfWeek != DayOfWeek.Saturday) || method(dt);
-            //span.Item = (dt) => (dt.DayOfWeek != DayOfWeek.Sunday && dt.DayOfWeek != DayOfWeek.Saturday) || span.Item(dt);
+            span.AddLambda((dt) => (dt.DayOfWeek != DayOfWeek.Sunday && dt.DayOfWeek != DayOfWeek.Saturday));
             return true;
         }
 
         private void ParseDayOfMonth()
         {
             var limit = new Limit(1, 31);
-            var dayOfMonth = new HashSet<decimal>();
-            Func<DateTime, bool> result = (dt) => false;
-            var span = new Span<Func<DateTime, bool>> { Item = result };
 
             SkipSpaces();
             SetContext("ParseDayOfMonth");
-            ParseBlocks(() => ParseWildcard(dayOfMonth, limit, ReadMonth), () => ParseDigit(dayOfMonth, limit, ReadMonth), () => ParseSlash(dayOfMonth, limit, ReadMonth), () => ParseWeek(dayOfMonth, limit, span), () => ParseLast(dayOfMonth, limit, ReadMonth, span));
-
-            var inner = span.Item;
-            _dayOfMonth = (dt) => dayOfMonth.Contains(dt.Day) || inner(dt);
+            ParseBlocks(() => ParseWildcard(_dayOfMonth, limit, ReadMonth), () => ParseDigitWithWeek(_dayOfMonth, limit, ReadMonth), () => ParseSlash(_dayOfMonth, limit, ReadMonth), () => ParseWeek(_dayOfMonth, limit, _dayOfMonth), () => ParseLast(_dayOfMonth, limit, ReadMonth, _dayOfMonth));
         }
 
         private void ParseHours()
         {
             var limit = new Limit(0, 23);
-            var hours = new HashSet<decimal>();
 
             SkipSpaces();
             SetContext("ParseMinutes");
-            ParseBlocks(() => ParseWildcard(hours, limit, ReadInteger), () => ParseDigit(hours, limit, ReadInteger), () => ParseSlash(hours, limit, ReadInteger));
-            _hours = dt => hours.Contains(dt.Hour);
+            ParseBlocks(() => ParseWildcard(_hours, limit, ReadInteger), () => ParseDigit(_hours, limit, ReadInteger), () => ParseSlash(_hours, limit, ReadInteger));
         }
 
         private void ParseMinutes()
         {
             var limit = new Limit(0, 59);
-            var minutes = new HashSet<decimal>();
 
             SkipSpaces();
             SetContext("ParseMinutes");
-            ParseBlocks(() => ParseWildcard(minutes, limit, ReadInteger), () => ParseDigit(minutes, limit, ReadInteger), () => ParseSlash(minutes, limit, ReadInteger));
-            _minutes = dt => minutes.Contains(dt.Minute);
+            ParseBlocks(() => ParseWildcard(_minutes, limit, ReadInteger), () => ParseDigit(_minutes, limit, ReadInteger), () => ParseSlash(_minutes, limit, ReadInteger));
         }
 
         private void ParseSeconds()
         {
             var limit = new Limit(0, 59);
-            var seconds = new HashSet<decimal>();
 
             SkipSpaces();
             SetContext("ParseSeconds");
-            ParseBlocks(() => ParseWildcard(seconds, limit, ReadInteger), () => ParseDigit(seconds, limit, ReadInteger), () => ParseSlash(seconds, limit, ReadInteger));
-            _seconds = dt => seconds.Contains(dt.Second);
+            ParseBlocks(() => ParseWildcard(_seconds, limit, ReadInteger), () => ParseDigit2(_seconds, limit, ReadInteger), () => ParseSlash(_seconds, limit, ReadInteger));
         }
 
-        private bool ParseDigit(ISet<decimal> set, Limit limit, Func<decimal> readFunc)
+        private bool ParseDigit2(CronLambda set, Limit limit, Func<decimal> readFunc)
         {
             if (!IsDigit())
             {
@@ -445,13 +494,101 @@ namespace Cron
                     set.Add(i);
                 }
             }
+            else if (Accept('W'))
+            {
+                NextSymbol();
+
+            }
+            return true;
+        }
+
+        private bool ParseDigitWithWeek(CronLambdaDayOfMonth set, Limit limit, Func<decimal> readFunc)
+        {
+            if (!IsDigit())
+            {
+                return false;
+            }
+
+            var start = (int)readFunc();
+
+            if (Accept('/'))
+            {
+                set.Add(start);
+                NextSymbol();
+                var stride = (int)readFunc();
+
+                for (var i = start; i <= limit.Max; i += stride)
+                {
+                    set.Add(i);
+                }
+            }
+            else if (Accept('W'))
+            {
+                NextSymbol();
+                set.AddClosestWeekday(start);
+
+                set.AddLambda(dt =>
+                {
+                    //Console.WriteLine($":: {dt:yyyy-MM-dd} {_factory.Create(dt, set.Weekdays()).ClosesWeekday(dt)}");
+                    return _factory.Create(dt, set.Weekdays()).ClosesWeekday(dt);
+                });
+            }
+            else if (Accept('-'))
+            {
+                set.Add(start);
+                NextSymbol();
+                var end = (int)readFunc();
+
+                for (var i = start; i <= end; ++i)
+                {
+                    set.Add(i);
+                }
+            }
+            else
+            {
+                set.Add(start);
+            }
+            return true;
+        }
+
+        private bool ParseDigit(CronLambda set, Limit limit, Func<decimal> readFunc)
+        {
+            if (!IsDigit() && !IsAlpha())
+            {
+                return false;
+            }
+
+            var start = (int)readFunc();
+            //Console.WriteLine($"[***] ParseDigit {this._context}: {start}, Symbol: {Symbol}");
+            set.Add(start);
+
+            if (Accept('/'))
+            {
+                NextSymbol();
+                var stride = (int)readFunc();
+
+                for (var i = start; i <= limit.Max; i += stride)
+                {
+                    set.Add(i);
+                }
+            }
+            else if (Accept('-'))
+            {
+                NextSymbol();
+                var end = (int)readFunc();
+
+                for (var i = start; i <= end; ++i)
+                {
+                    set.Add(i);
+                }
+            }
             else if (IsWhiteSpace())
             {
             }
             return true;
         }
 
-        private bool ParseSlash(ISet<decimal> set, Limit limit, Func<decimal> readFunc)
+        private bool ParseSlash(CronLambda set, Limit limit, Func<decimal> readFunc)
         {
             if (!Slash())
             {
@@ -468,7 +605,7 @@ namespace Cron
             return true;
         }
 
-        private bool ParseWildcard(ISet<decimal> set, Limit limit, Func<decimal> readFunc)
+        private bool ParseWildcard(CronLambda set, Limit limit, Func<decimal> readFunc)
         {
             if (!IsWildcard2())
             {
@@ -488,8 +625,23 @@ namespace Cron
             }
             else
             {
-                set.AddRange(Range(0, 59));
+                set.AddRange(Range(limit.Min, limit.Max));
             }
+            return true;
+        }
+
+        private bool ParseWildcard2(CronLambda set, Limit limit)
+        {
+            //Console.WriteLine($"[***] ParseWildcard2 {this._context}: ..., Symbol: {this.Symbol}");
+            if (!IsWildcard2())
+            {
+                return false;
+            }
+
+            NextSymbol();
+            //Console.WriteLine($"2[***] ParseWildcard2 {this._context}: ..., Symbol: {this.Symbol}");
+            //Console.WriteLine($"@@@@@@@@@@@2 add all range, Symbol: {this.Symbol}");
+            set.AddRange(Range(limit.Min, limit.Max));
             return true;
         }
 
@@ -515,9 +667,11 @@ namespace Cron
                 if (IsComma())
                 {
                     NextSymbol();
+                    //Console.WriteLine("continue");
                     continue;
                 }
 
+                //Console.WriteLine("break");
                 break;
             }
         }
@@ -548,7 +702,7 @@ namespace Cron
             }
 
             _position = pos;
-            Console.WriteLine($"Header: {header}, content: [{content.ToString()}]");
+            //Console.WriteLine($"Header: {header}, content: [{content.ToString()}]");
         }
 
         private bool IsWhiteSpace()

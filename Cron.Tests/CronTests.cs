@@ -73,13 +73,13 @@ namespace Cron.Tests
         [InlineData("L-1", "2000-01-30, 2000-02-28")] // Last day of month - 1 (not imp)
         [InlineData("*/10", "2000-01-01, 2000-01-11")] // Increment
         [InlineData("/10", "2000-01-01, 2000-01-11")] // Increment
-        //[InlineData("LW", "2000-01-31, 2000-02-29")] // "last weekday of the month"*.  (NOT IMPLEMENTED)
-        //[InlineData("1W", "2000-01-03")] //(NOT IMPLEMENTED)
-        //[InlineData("2W", "2000-01-03")] //(NOT IMPLEMENTED)
-        //[InlineData("3W", "2000-01-03")] //(NOT IMPLEMENTED)
-        //[InlineData("7W", "2000-01-07")] //(NOT IMPLEMENTED)
-        //[InlineData("8W", "2000-01-07")] //(NOT IMPLEMENTED)
-        // [InlineData("9W", "2000-01-10")] //the nearest weekday to the 15th of the month (same month) (NOT IMPLEMENTED)
+        [InlineData("LW", "2000-01-31, 2000-02-29")] // "last weekday of the month"*.  (NOT IMPLEMENTED)
+        [InlineData("1W", "2000-01-03")]
+        [InlineData("2W", "2000-01-03")]
+        [InlineData("3W", "2000-01-03")]
+        [InlineData("7W", "2000-01-07")]
+        [InlineData("8W", "2000-01-07")]
+        [InlineData("9W", "2000-01-10")] //the nearest weekday to the 15th of the month (same month)
         public void TestDayOfMonth(string cron, string targets)
         {
             Impl($"0 0 0 {cron} * *", targets);
@@ -117,11 +117,11 @@ namespace Cron.Tests
         [InlineData("SAT", "2000-01-01, 2000-01-08")] // Saturaday
         [InlineData("7", "2000-01-01, 2000-01-08")] // Saturaday
         [InlineData("L", "2000-01-01, 2000-01-08")] // Saturaday
-        // [InlineData("6#2", "2000-01-14, 2000-02-11")] // 2nd friday of month (NOT IMPLEMENTED)
-        // [InlineData("6L", "2000-01-28, 2000-02-25")] // last friday of month (NOT IMPLEMENTED)
+        [InlineData("4#2", "2000-01-12, 2001-01-10")] // 2nd wednesday of month
+        [InlineData("4L", "2000-01-26, 2001-01-31")] // last friday of month (NOT IMPLEMENTED)
         public void TestDayOfWeek(string cron, string targets)
         {
-            Impl($"0 0 0 * 1 {cron}", targets);
+            Impl($"0 0 0 * 1 {cron} *", targets);
         }
 
         // OK, DICTIONARY
@@ -156,10 +156,9 @@ namespace Cron.Tests
         [InlineData("0 11 11 11 11 ?", "2000-11-11 11:11, 2001-11-11 11:11")]
         [InlineData("0 15 10 L * ?", "2000-01-31 10:15, 2000-02-29 10:15")]
         [InlineData("0 15 10 L-2 * ?", "2000-01-29 10:15")]
-        // .[InlineData("0 15 10 ? * 6L", "2005-01-01")] (NOT IMPLEMENTED)
-        // .[InlineData("0 15 10 ? * 6L", "2005-01-01")] (NOT IMPLEMENTED)
-        // .[InlineData("0 15 10 ? * 6L 2002-2005", "2005-01-01")] (NOT IMPLEMENTED)
-        // .[InlineData("0 15 10 ? * 6#3", "2005-01-01")] (NOT IMPLEMENTED)
+        [InlineData("0 15 10 ? * 6L", "2000-01-28 10:15")]
+        [InlineData("0 15 10 ? * 6L 2002-2005", "2002-01-25 10:15")]
+        [InlineData("0 15 10 ? * 6#3", "2000-01-21 10:15")]
         public void QuartzExamplesTests(string cron, string targets)
         {
             Impl(cron, targets);
@@ -168,11 +167,10 @@ namespace Cron.Tests
         private void Impl(string cron, string target)
         {
             var dates = target.Replace(", EOF", "").Split(',').Select(x => DateTime.Parse(x.Trim())); //9999-12-31 23:59:59.9999999
-            var parser = new CronParser();
+            var parser = new CronParser(new MonthLookupFactory());
             var scheduler = parser.Parse(cron);
             var time = new DateTime(2000, 01, 01);
 
-            Console.WriteLine("Parsing done!");
             foreach (var date in dates)
             {
                 DateTime next;
