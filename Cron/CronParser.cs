@@ -632,15 +632,12 @@ namespace Cron
 
         private bool ParseWildcard2(CronLambda set, Limit limit)
         {
-            //Console.WriteLine($"[***] ParseWildcard2 {this._context}: ..., Symbol: {this.Symbol}");
             if (!IsWildcard2())
             {
                 return false;
             }
 
             NextSymbol();
-            //Console.WriteLine($"2[***] ParseWildcard2 {this._context}: ..., Symbol: {this.Symbol}");
-            //Console.WriteLine($"@@@@@@@@@@@2 add all range, Symbol: {this.Symbol}");
             set.AddRange(Range(limit.Min, limit.Max));
             return true;
         }
@@ -667,11 +664,9 @@ namespace Cron
                 if (IsComma())
                 {
                     NextSymbol();
-                    //Console.WriteLine("continue");
                     continue;
                 }
 
-                //Console.WriteLine("break");
                 break;
             }
         }
@@ -702,7 +697,7 @@ namespace Cron
             }
 
             _position = pos;
-            //Console.WriteLine($"Header: {header}, content: [{content.ToString()}]");
+            Console.WriteLine($"Header: {header}, content: [{content.ToString()}]");
         }
 
         private bool IsWhiteSpace()
