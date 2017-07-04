@@ -24,6 +24,7 @@ namespace Cron
                 [DayOfWeek.Sunday] = 0
             };
             var array = new int[] { 0, -1, 1, -2, 2 };
+            
             for (var day = date; day < date.AddMonths(1); day = day.AddDays(1))
             {
                 _lastWeekday[day.DayOfWeek] = day.Day;
@@ -60,7 +61,7 @@ namespace Cron
 
         public bool LastWeekday(DayOfWeek dayOfWeek, DateTime day)
         {
-            return _lastWeekday.ContainsKey(dayOfWeek) ? _lastWeekday[dayOfWeek] == day.Day : false;
+            return _lastWeekday[dayOfWeek] == day.Day;
         }
 
         public bool NthWeekday(int nth, DayOfWeek dayOfWeek, DateTime dt)

@@ -22,8 +22,8 @@ namespace Cron.Tests
         [InlineData("5/25", "2000-01-01 00:00:05, 2000-01-01 00:00:30, 2000-01-01 00:00:55, 2000-01-01 00:01:05")] // Increment
         [InlineData("*/5", "2000-01-01 00:00:00, 2000-01-01 00:00:05")] // Increment
         [InlineData("/5", "2000-01-01 00:00:00, 2000-01-01 00:00:05")] // Increment
-        // [InlineData("u/0.125", "2000-01-01 00:00:00.000, 2000-01-01 00:00:00.125, 2000-01-01 00:00:00.250")] // Millisecond resolution
-        // [InlineData("u5/0.125", "2000-01-01 00:00:05.000, 2000-01-01 00:00:05.125")] // Millisecond resolution
+        // [InlineData("/0.125", "2000-01-01 00:00:00.000, 2000-01-01 00:00:00.125, 2000-01-01 00:00:00.250")] // Millisecond resolution
+        // [InlineData("5/0.125", "2000-01-01 00:00:05.000, 2000-01-01 00:00:05.125")] // Millisecond resolution
         public void TestSeconds(string cron, string targets)
         {
             Impl($"{cron} * * * * *", targets);
@@ -118,7 +118,9 @@ namespace Cron.Tests
         [InlineData("7", "2000-01-01, 2000-01-08")] // Saturaday
         [InlineData("L", "2000-01-01, 2000-01-08")] // Saturaday
         [InlineData("4#2", "2000-01-12, 2001-01-10")] // 2nd wednesday of month
-        [InlineData("4L", "2000-01-26, 2001-01-31")] // last friday of month (NOT IMPLEMENTED)
+        [InlineData("WED#2", "2000-01-12, 2001-01-10")] // 2nd wednesday of month
+        [InlineData("4L", "2000-01-26, 2001-01-31")] // last wednesday of month (NOT IMPLEMENTED)
+        [InlineData("WEDL", "2000-01-26, 2001-01-31")] // last wednesday of month (NOT IMPLEMENTED)
         public void TestDayOfWeek(string cron, string targets)
         {
             Impl($"0 0 0 * 1 {cron} *", targets);
