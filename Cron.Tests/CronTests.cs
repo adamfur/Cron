@@ -171,7 +171,7 @@ namespace Cron.Tests
             var dates = target.Replace(", EOF", "").Split(',').Select(x => DateTime.Parse(x.Trim())); //9999-12-31 23:59:59.9999999
             var parser = new CronParser(new MonthLookupFactory());
             var scheduler = parser.Parse(cron);
-            var time = new DateTime(2000, 01, 01)/*.AddMilliseconds(-1)*/;
+            var time = new DateTime(2000, 01, 01).AddMilliseconds(-1);
 
             foreach (var date in dates)
             {

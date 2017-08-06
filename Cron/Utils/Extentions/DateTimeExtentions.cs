@@ -36,7 +36,7 @@ namespace Cron
 
         public static DateTime AsHour(this DateTime value)
         {
-            return new DateTime(value.Year, value.Month, value.Day, value.Hour, value.Minute, 0);
+            return new DateTime(value.Year, value.Month, value.Day, value.Hour, 0, 0);
         }
 
         public static bool IsWeekend(this DateTime value)
