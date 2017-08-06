@@ -26,7 +26,7 @@ namespace Cron
         {
             Prepare(cron);
             Parse();
-            return new CronScheduler(dt => _year.Allowed(dt), dt => _seconds.Allowed(dt), dt => _hours.Allowed(dt), dt => _minutes.Allowed(dt), dt => _months.Allowed(dt), dt => _dayOfMonth.Allowed(dt), dt => _dayOfWeek.Allowed(dt), 0);
+            return new CronScheduler(dt => _year.Allowed(dt), dt => _seconds.Allowed(dt), dt => _hours.Allowed(dt), dt => _minutes.Allowed(dt), dt => _months.Allowed(dt), dt => _dayOfMonth.Allowed(dt), dt => _dayOfWeek.Allowed(dt));
         }
 
         private void Parse()
@@ -163,17 +163,17 @@ namespace Cron
             throw new CronException("ReadMonth");
         }
 
-        private decimal ReadDayOfWeek()
+        private DayOfWeek ReadDayOfWeek()
         {
             if (Accept('/'))
             {
-                return 0;
+                return DayOfWeek.Sunday;
             }
 
             if (Accept('*'))
             {
                 NextSymbol();
-                return 0;
+                return DayOfWeek.Sunday;
             }
 
             if (IsAlpha())
@@ -181,14 +181,13 @@ namespace Cron
                 var word = ReadWord();
 
                 Console.WriteLine($"ABC: {word} -> {(DayOfWeek)_dayTextTranslator[word]}");
-                return (int)_dayTextTranslator[word];
+                return _dayTextTranslator[word];
             }
             else if (IsDigit())
             {
-                var hej = (int)ReadInteger();
-                var value = (int)_dayNumberTranslator[hej];
+                var value = _dayNumberTranslator[(int)ReadInteger()];
 
-                Console.WriteLine($"ABC: {hej} -> {(DayOfWeek) value}");
+                //Console.WriteLine($"ABC: {hej} -> {(DayOfWeek) value}");
                 return value;
             }
             throw new CronException($"ReadDayOfWeek: [{Symbol}]");
