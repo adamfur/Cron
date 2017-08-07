@@ -45,8 +45,6 @@ namespace Cron
             var prev = next;
             var resolution = CronResultion.Year;
 
-            Console.WriteLine($"now: {now:yyyy-MM-dd HH:mm:ss.fff}");
-
             switch (resolution)
             {
                 case CronResultion.Year:
@@ -65,7 +63,6 @@ namespace Cron
                         prev = next;
                         next = next.AsYear().AddYears(1);
                     }
-                    Console.WriteLine($"Year: {next:yyyy-MM-dd HH:mm:ss.fff}");
                     goto case CronResultion.Month;
                 case CronResultion.Month:
                     while (!_months(next))
@@ -78,7 +75,6 @@ namespace Cron
                             goto case CronResultion.Year;
                         }
                     }
-                    Console.WriteLine($"Month: {next:yyyy-MM-dd HH:mm:ss.fff}");
                     goto case CronResultion.Day;
                 case CronResultion.Day:
                     while (!_days(next) || !_dayOfWeek(next))
@@ -91,7 +87,6 @@ namespace Cron
                             goto case CronResultion.Month;
                         }
                     }
-                    Console.WriteLine($"Day: {next:yyyy-MM-dd HH:mm:ss.fff}");
                     goto case CronResultion.Hour;
                 case CronResultion.Hour:
                     while (!_hours(next))
@@ -104,7 +99,6 @@ namespace Cron
                             goto case CronResultion.Day;
                         }
                     }
-                    Console.WriteLine($"Hour: {next:yyyy-MM-dd HH:mm:ss.fff}");
                     goto case CronResultion.Minute;
                 case CronResultion.Minute:
                     while (!_minutes(next))
@@ -117,7 +111,6 @@ namespace Cron
                             goto case CronResultion.Hour;
                         }
                     }
-                    Console.WriteLine($"Minute: {next:yyyy-MM-dd HH:mm:ss.fff}");
                     goto case CronResultion.Second;
                 case CronResultion.Second:
                     while (!_seconds(next) || next == now)
@@ -131,9 +124,8 @@ namespace Cron
                         }
                     }
 
-                    Console.WriteLine($"Second: {next:yyyy-MM-dd HH:mm:ss.fff}");
-                    break;
-                    // case CronResultion.Millisecond:
+                    goto case CronResultion.Millisecond;
+                case CronResultion.Millisecond:
                     //     var millisecond = 1000.0;
                     //     var tick = (int)(millisecond * 0.125);
                     //     var mili = next.Millisecond;
@@ -152,10 +144,9 @@ namespace Cron
                     //         goto case CronResultion.Second;
                     //     }
                     //     next = next.AsSecond().AddMilliseconds(result);
-                    //     break;
+                    break;
             }
 
-            Console.WriteLine($"Next Date: {next:yyyy-MM-dd HH:mm:ss.fff} {next.DayOfWeek}, year:{_years(next)}, month:{_months(next)}, days:{_days(next)} hours:{_hours(next)}, minutes:{_minutes(next)}, seconds:{_seconds(next)}");
             return next;
         }
     }
