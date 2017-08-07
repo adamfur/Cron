@@ -67,10 +67,6 @@ namespace Cron
         {
             return Symbol == ' ' || Symbol == '\t';
         }
-        protected bool Content()
-        {
-            return IsWhiteSpace() || Symbol == Eof;
-        }
 
         protected bool IsDigit()
         {
