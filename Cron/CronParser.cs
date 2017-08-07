@@ -5,8 +5,45 @@ using System.Text;
 
 namespace Cron
 {
-    public class CronParser : CronParent
+    public class CronParser : RecursiveDecentParserBase, ICronParser
     {
+        private static Dictionary<string, int> _monthTranslator = new Dictionary<string, int>
+        {
+            ["JAN"] = 1,
+            ["FEB"] = 2,
+            ["MAR"] = 3,
+            ["APR"] = 4,
+            ["MAY"] = 5,
+            ["JUN"] = 6,
+            ["JUL"] = 7,
+            ["AUG"] = 8,
+            ["SEP"] = 9,
+            ["OCT"] = 10,
+            ["NOV"] = 11,
+            ["DEC"] = 12
+        };
+        private static Dictionary<string, DayOfWeek> _dayTextTranslator = new Dictionary<string, DayOfWeek>
+        {
+            ["SUN"] = DayOfWeek.Sunday,
+            ["MON"] = DayOfWeek.Monday,
+            ["TUE"] = DayOfWeek.Tuesday,
+            ["WED"] = DayOfWeek.Wednesday,
+            ["THU"] = DayOfWeek.Thursday,
+            ["FRI"] = DayOfWeek.Friday,
+            ["SAT"] = DayOfWeek.Saturday,
+            ["L"] = DayOfWeek.Saturday
+        };
+        private static Dictionary<int, DayOfWeek> _dayNumberTranslator = new Dictionary<int, DayOfWeek>
+        {
+            [1] = DayOfWeek.Sunday,
+            [2] = DayOfWeek.Monday,
+            [3] = DayOfWeek.Tuesday,
+            [4] = DayOfWeek.Wednesday,
+            [5] = DayOfWeek.Thursday,
+            [6] = DayOfWeek.Friday,
+            [7] = DayOfWeek.Saturday,
+        };
+
         private CronLambda _year = new CronLambdaYear();
         private CronLambda _seconds = new CronLambdaSecond();
         private CronLambda _hours = new CronLambdaHour();
@@ -22,7 +59,7 @@ namespace Cron
             _factory = factory;
         }
 
-        public override ICronScheduler Parse(string cron)
+        public ICronScheduler Parse(string cron)
         {
             Prepare(cron);
             Parse();
