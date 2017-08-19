@@ -39,12 +39,58 @@ namespace Cron
             return Next(SystemTime.UtcNow);
         }
 
+        // public DateTime Next2(DateTime now)
+        // {
+        //     var list = new Action[]
+        //     {
+        //         () => Year(),
+        //         () => Month(),
+        //         () => Day(),
+        //         () => Hour(),
+        //         () => Minute(),
+        //         () => Second()
+        //     };
+        //     var next = now;
+
+        //     for (var i = 0; i < list.Length; ++i)
+        //     {
+        //         var action = list[i];
+
+
+        //     }
+        // }
+
+        // private void Year()
+        // {
+        // }
+
+        // private void Month()
+        // {
+        // }
+
+        // private void Day()
+        // {
+        // }
+
+        // private void Hour()
+        // {
+        // }
+
+        // private void Minute()
+        // {
+        // }
+
+        // private void Second()
+        // {
+        // }
+
         public DateTime Next(DateTime now)
         {
             var next = now;
             var prev = next;
             var resolution = CronResultion.Year;
 
+            // BUGGY, FIX
             switch (resolution)
             {
                 case CronResultion.Year:
